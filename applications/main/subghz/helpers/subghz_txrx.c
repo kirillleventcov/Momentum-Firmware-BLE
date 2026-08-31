@@ -674,19 +674,33 @@ SubGhzRadioDeviceType
     furi_assert(instance);
 
     if(radio_device_type == SubGhzRadioDeviceTypeExternalCC1101 &&
+       instance->radio_device_type == SubGhzRadioDeviceTypeExternalCC1101) {
+        // Already running on the external module, begin() a second time would assert
+        return instance->radio_device_type;
+    }
+
+    if(radio_device_type == SubGhzRadioDeviceTypeExternalCC1101 &&
        subghz_txrx_radio_device_is_external_connected(instance, SUBGHZ_DEVICE_CC1101_EXT_NAME)) {
         subghz_txrx_radio_device_power_on(instance);
-        instance->radio_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_EXT_NAME);
-        subghz_devices_begin(instance->radio_device);
-        instance->radio_device_type = SubGhzRadioDeviceTypeExternalCC1101;
-    } else {
-        subghz_txrx_radio_device_power_off(instance);
-        if(instance->radio_device_type != SubGhzRadioDeviceTypeInternal) {
-            subghz_devices_end(instance->radio_device);
+        const SubGhzDevice* device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_EXT_NAME);
+        if(subghz_devices_begin(device)) {
+            instance->radio_device = device;
+            instance->radio_device_type = SubGhzRadioDeviceTypeExternalCC1101;
+            return instance->radio_device_type;
         }
-        instance->radio_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_INT_NAME);
-        instance->radio_device_type = SubGhzRadioDeviceTypeInternal;
+        // The module answered the probe but did not initialise, so it is not usable.
+        // Release it and fall back to the internal radio: leaving it selected makes
+        // every later idle/rx/tx trip the furi_check on the CC1101 status read.
+        FURI_LOG_E(TAG, "External radio init failed, falling back to internal");
+        subghz_devices_end(device);
     }
+
+    subghz_txrx_radio_device_power_off(instance);
+    if(instance->radio_device_type == SubGhzRadioDeviceTypeExternalCC1101) {
+        subghz_devices_end(instance->radio_device);
+    }
+    instance->radio_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_INT_NAME);
+    instance->radio_device_type = SubGhzRadioDeviceTypeInternal;
 
     return instance->radio_device_type;
 }

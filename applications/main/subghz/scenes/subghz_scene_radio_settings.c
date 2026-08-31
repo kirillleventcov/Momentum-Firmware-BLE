@@ -100,8 +100,15 @@ static void subghz_scene_radio_settings_set_device(VariableItem* item) {
         //ToDo correct if there is more than 1 module
         index = 0;
     }
+    // Show what actually got selected: the external module can still fail to
+    // initialise after answering the probe, in which case we stay on internal
+    SubGhzRadioDeviceType selected =
+        subghz_txrx_radio_device_set(subghz->txrx, radio_device_value[index]);
+    if(selected != radio_device_value[index]) {
+        index = 0;
+        variable_item_set_current_value_index(item, index);
+    }
     variable_item_set_current_value_text(item, radio_device_text[index]);
-    subghz_txrx_radio_device_set(subghz->txrx, radio_device_value[index]);
 }
 
 static void subghz_scene_radio_settings_set_tx_power(VariableItem* item) {

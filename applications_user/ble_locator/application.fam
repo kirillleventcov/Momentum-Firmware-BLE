@@ -1,0 +1,19 @@
+App(
+    appid="ble_locator",
+    name="BLE Locator",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="ble_locator_app",
+    # "test" holds the host-side unit tests, which must not go into the FAP
+    sources=["*.c*", "!test"],
+    requires=[
+        "gui",
+        "notification",
+        "storage",
+    ],
+    stack_size=4 * 1024,
+    order=10,
+    fap_category="Bluetooth",
+    fap_author="@kirill",
+    fap_version="2.0",
+    fap_description="Scan BLE advertisers, capture a few that belong together, and the app works out what they have in common. It then spots devices of that kind you have never seen before and homes in on them with a signal meter.",
+)

@@ -240,10 +240,25 @@ bool subghz_device_cc1101_ext_alloc(SubGhzDeviceConf* conf) {
              &furi_hal_spi_bus_handle_external :
              &furi_hal_spi_bus_handle_external_extra);
 
+    // Pin 7 (PC3) is claimed by the E07 amplifier control, but it is also the chip
+    // select of the "Extra" SPI handle. When either radio sits on the extra handle
+    // the pin belongs to that chip select, and driving it as an amp control would
+    // toggle CS outside of transactions (the CC1101 needs CS to rise between them,
+    // otherwise its SPI byte framing desyncs and every status read comes back bad).
+    if(momentum_settings.spi_cc1101_handle == SpiExtra ||
+       momentum_settings.spi_nrf24_handle == SpiExtra) {
+        subghz_device_cc1101_ext->amp_and_leds = false;
+    }
+
     // this is needed if multiple SPI devices are connected to the same bus but with different CS pins
+    // Hold the other device's chip select high so it keeps off MISO while we talk
+    // to the CC1101 (combo boards carry a CC1101 and an nRF24 on the same bus).
     if(momentum_settings.spi_cc1101_handle == SpiExtra) {
         furi_hal_gpio_init_simple(&gpio_ext_pa4, GpioModeOutputPushPull);
         furi_hal_gpio_write(&gpio_ext_pa4, true);
+    } else if(momentum_settings.spi_nrf24_handle == SpiExtra) {
+        furi_hal_gpio_init_simple(&gpio_ext_pc3, GpioModeOutputPushPull);
+        furi_hal_gpio_write(&gpio_ext_pc3, true);
     }
 
     furi_hal_spi_bus_handle_init(subghz_device_cc1101_ext->spi_bus_handle);
@@ -260,12 +275,15 @@ void subghz_device_cc1101_ext_free(void) {
 
     furi_hal_spi_bus_handle_deinit(subghz_device_cc1101_ext->spi_bus_handle);
 
-    // resetting the CS pins to floating
-    if(momentum_settings.spi_nrf24_handle == SpiDefault ||
-       subghz_device_cc1101_ext->amp_and_leds) {
+    // resetting the pins claimed in alloc() to floating: the amp control, and the
+    // chip select of the other device on the bus that we held deselected
+    if(subghz_device_cc1101_ext->amp_and_leds) {
         furi_hal_gpio_init_simple(&gpio_ext_pc3, GpioModeAnalog);
-    } else if(momentum_settings.spi_nrf24_handle == SpiExtra) {
+    }
+    if(momentum_settings.spi_cc1101_handle == SpiExtra) {
         furi_hal_gpio_init_simple(&gpio_ext_pa4, GpioModeAnalog);
+    } else if(momentum_settings.spi_nrf24_handle == SpiExtra) {
+        furi_hal_gpio_init_simple(&gpio_ext_pc3, GpioModeAnalog);
     }
 
     free(subghz_device_cc1101_ext);

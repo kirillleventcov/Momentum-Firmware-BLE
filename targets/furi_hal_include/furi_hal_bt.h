@@ -242,7 +242,86 @@ uint32_t furi_hal_bt_get_transmitted_packets(void);
 bool furi_hal_bt_ensure_c2_mode(BleGlueC2Mode mode);
 
 /**
- * Extra BLE beacon API 
+ * BLE observer (scanner) API
+ *
+ * Requires the "full" radio stack. The stock "light" stack is peripheral-only
+ * and physically cannot scan - furi_hal_bt_is_scan_supported() returns false
+ * there and every start call fails.
+ */
+
+/** Advertising report event types, as reported by the controller */
+typedef enum {
+    FuriHalBtAdvEventTypeConnectableUndirected = 0x00, /**< ADV_IND */
+    FuriHalBtAdvEventTypeConnectableDirected = 0x01, /**< ADV_DIRECT_IND */
+    FuriHalBtAdvEventTypeScannableUndirected = 0x02, /**< ADV_SCAN_IND */
+    FuriHalBtAdvEventTypeNonConnectableUndirected = 0x03, /**< ADV_NONCONN_IND */
+    FuriHalBtAdvEventTypeScanResponse = 0x04, /**< SCAN_RSP */
+} FuriHalBtAdvEventType;
+
+/** A single BLE advertising report.
+ *
+ * @note `data` points into the HCI event buffer and is only valid for the
+ *       duration of the callback. Copy anything you need to keep.
+ * @note `address` is in raw HCI order (least significant byte first), i.e. the
+ *       reverse of the way MAC addresses are usually printed.
+ */
+typedef struct {
+    uint8_t event_type; /**< FuriHalBtAdvEventType */
+    uint8_t address_type; /**< 0: public, 1: random, 2/3: resolved identity */
+    uint8_t address[6]; /**< LSB first */
+    int8_t rssi; /**< dBm, 127 when not available */
+    uint8_t data_len; /**< 0..31 */
+    const uint8_t* data; /**< AD structures, valid during the callback only */
+} FuriHalBtAdvReport;
+
+/** Advertising report callback.
+ *
+ * @warning Called from the BLE event thread. Keep it short - copy the report
+ *          into your own queue/buffer and return.
+ */
+typedef void (*FuriHalBtScanCallback)(const FuriHalBtAdvReport* report, void* context);
+
+/** Scan parameters */
+typedef struct {
+    uint16_t scan_interval; /**< units of 0.625 ms, 0x0004..0x4000 */
+    uint16_t scan_window; /**< units of 0.625 ms, <= scan_interval */
+    bool active_scan; /**< send SCAN_REQ to also collect scan responses */
+    bool filter_duplicates; /**< let the controller drop repeated reports */
+} FuriHalBtScanConfig;
+
+/** Check if the installed radio stack is able to scan
+ *
+ * @return  true if the full radio stack is running
+ */
+bool furi_hal_bt_is_scan_supported(void);
+
+/** Start scanning for BLE advertisements
+ *
+ * @param[in]  config    scan parameters
+ * @param[in]  callback  report callback, called from the BLE event thread
+ * @param[in]  context   context passed to the callback
+ *
+ * @return     true on success
+ */
+bool furi_hal_bt_start_scan(
+    const FuriHalBtScanConfig* config,
+    FuriHalBtScanCallback callback,
+    void* context);
+
+/** Stop scanning for BLE advertisements
+ *
+ * @return     true on success
+ */
+bool furi_hal_bt_stop_scan(void);
+
+/** Check if scanning is currently running
+ *
+ * @return     true while scanning
+ */
+bool furi_hal_bt_is_scanning(void);
+
+/**
+ * Extra BLE beacon API
  */
 
 /** Set extra beacon data. Can be called in any state

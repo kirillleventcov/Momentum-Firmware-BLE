@@ -3,6 +3,8 @@
 #include <applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h>
 #include <lib/subghz/devices/cc1101_int/cc1101_int_interconnect.h>
 
+#define TAG "RadioDeviceLoader"
+
 static void radio_device_loader_power_on() {
     uint8_t attempts = 0;
     while(!furi_hal_power_is_otg_enabled() && attempts++ < 5) {
@@ -38,21 +40,36 @@ bool radio_device_loader_is_connect_external(const char* name) {
 const SubGhzDevice* radio_device_loader_set(
     const SubGhzDevice* current_radio_device,
     SubGhzRadioDeviceType radio_device_type) {
-    const SubGhzDevice* radio_device;
+    const SubGhzDevice* internal_device =
+        subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_INT_NAME);
+
+    if(radio_device_type == SubGhzRadioDeviceTypeExternalCC1101 && current_radio_device != NULL &&
+       current_radio_device != internal_device) {
+        // Already running on the external module, begin() a second time would assert
+        return current_radio_device;
+    }
 
     if(radio_device_type == SubGhzRadioDeviceTypeExternalCC1101 &&
        radio_device_loader_is_connect_external(SUBGHZ_DEVICE_CC1101_EXT_NAME)) {
         radio_device_loader_power_on();
-        radio_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_EXT_NAME);
-        subghz_devices_begin(radio_device);
-    } else if(current_radio_device == NULL) {
-        radio_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_INT_NAME);
-    } else {
-        radio_device_loader_end(current_radio_device);
-        radio_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_INT_NAME);
+        const SubGhzDevice* radio_device =
+            subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_EXT_NAME);
+        if(subghz_devices_begin(radio_device)) {
+            return radio_device;
+        }
+        // The module answered the probe but did not initialise, so it is not usable.
+        // Release it and fall back to the internal radio: handing it back makes every
+        // later idle/rx/tx trip the furi_check on the CC1101 status read.
+        FURI_LOG_E(TAG, "External radio init failed, falling back to internal");
+        subghz_devices_end(radio_device);
+        radio_device_loader_power_off();
     }
 
-    return radio_device;
+    if(current_radio_device != NULL) {
+        radio_device_loader_end(current_radio_device);
+    }
+
+    return internal_device;
 }
 
 void radio_device_loader_end(const SubGhzDevice* radio_device) {

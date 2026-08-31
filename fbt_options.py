@@ -57,9 +57,13 @@ COPRO_CUBE_VERSION = "1.20.0"
 COPRO_CUBE_DIR = "lib/stm32wb_copro"
 
 # Default radio stack
-COPRO_STACK_BIN = "stm32wb5x_BLE_Stack_light_fw.bin"
-# Firmware also supports "ble_full", but it might not fit into debug builds
-COPRO_STACK_TYPE = "ble_light"
+# NOTE: "ble_full" is required for BLE scanning / observer role (Scooter Locator
+# and anything else that needs to *receive* advertisements). The "light" stack is
+# peripheral-only ("Slave Only") and its link layer has no scanner at all.
+# It also sits 36 KiB lower in flash (0x080CE000 vs 0x080D7000), so it only fits
+# in COMPACT (size-optimized) builds - a DEBUG=1 build will overflow into it.
+COPRO_STACK_BIN = "stm32wb5x_BLE_Stack_full_fw.bin"
+COPRO_STACK_TYPE = "ble_full"
 
 # Leave 0 to let scripts automatically calculate it
 COPRO_STACK_ADDR = "0x0"

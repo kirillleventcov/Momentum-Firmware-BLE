@@ -1,4 +1,5 @@
 #include "ble_glue.h"
+#include "ble_scanner.h"
 #include <core/check.h>
 #include <gap.h>
 #include <furi_hal_bt.h>
@@ -439,4 +440,23 @@ bool furi_hal_bt_extra_beacon_stop(void) {
 
 bool furi_hal_bt_extra_beacon_is_active(void) {
     return gap_extra_beacon_get_state() == GapExtraBeaconStateStarted;
+}
+
+bool furi_hal_bt_is_scan_supported(void) {
+    return furi_hal_bt_get_radio_stack() == FuriHalBtStackFull;
+}
+
+bool furi_hal_bt_start_scan(
+    const FuriHalBtScanConfig* config,
+    FuriHalBtScanCallback callback,
+    void* context) {
+    return ble_scanner_start(config, callback, context);
+}
+
+bool furi_hal_bt_stop_scan(void) {
+    return ble_scanner_stop();
+}
+
+bool furi_hal_bt_is_scanning(void) {
+    return ble_scanner_is_active();
 }

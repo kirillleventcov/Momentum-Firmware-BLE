@@ -356,13 +356,36 @@ static void gap_init_svc(Gap* gap, const GapRootSecurityKeys* root_keys) {
     // Initialize GAP interface
     // Skip fist symbol AD_TYPE_COMPLETE_LOCAL_NAME
     char* name = gap->service.adv_name + 1;
-    aci_gap_init(
-        GAP_PERIPHERAL_ROLE,
+    // The observer role lets us run scan procedures alongside advertising.
+    // The light (peripheral-only) stack rejects anything but GAP_PERIPHERAL_ROLE,
+    // so only ask for it when the full stack is installed.
+    uint8_t gap_role = GAP_PERIPHERAL_ROLE;
+    if(furi_hal_bt_get_radio_stack() == FuriHalBtStackFull) {
+        gap_role |= GAP_OBSERVER_ROLE;
+    }
+    status = aci_gap_init(
+        gap_role,
         0,
         strlen(name),
         &gap->service.gap_svc_handle,
         &gap->service.dev_name_char_handle,
         &gap->service.appearance_char_handle);
+    if(status && (gap_role != GAP_PERIPHERAL_ROLE)) {
+        // Never let a rejected observer role take the whole GAP layer down with
+        // it - fall back to the plain peripheral setup we have always used.
+        FURI_LOG_E(TAG, "GAP init with observer role failed: %d, retrying as peripheral", status);
+        gap_role = GAP_PERIPHERAL_ROLE;
+        status = aci_gap_init(
+            gap_role,
+            0,
+            strlen(name),
+            &gap->service.gap_svc_handle,
+            &gap->service.dev_name_char_handle,
+            &gap->service.appearance_char_handle);
+    }
+    if(status) {
+        FURI_LOG_E(TAG, "GAP init failed: %d", status);
+    }
 
     // Set GAP characteristics
     status = aci_gatt_update_char_value(

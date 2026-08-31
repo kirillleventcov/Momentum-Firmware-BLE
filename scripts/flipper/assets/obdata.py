@@ -95,6 +95,8 @@ class OptionByte:
                 return cls.READ
             elif value == "rw":
                 return cls.READ_WRITE
+            elif value == "i":
+                return cls.IGNORE
             else:
                 raise OBException(f"Unknown OB check mode '{value}'")
 
@@ -163,6 +165,10 @@ class ObReferenceValuesGenerator:
     def apply(self, ob):
         ob_params = ob.descr
         encoded_ob = ob.encode()
+        if ob.mode == OptionByte.OBMode.IGNORE:
+            # Left out of the compare mask entirely, so the updater neither
+            # checks nor touches it.
+            return
         self.compare_mask[ob_params.word_idx] |= encoded_ob.mask
         self.ref_values[ob_params.word_idx] |= encoded_ob.value
         if ob.mode == OptionByte.OBMode.READ_WRITE:

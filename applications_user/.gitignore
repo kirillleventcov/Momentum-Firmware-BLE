@@ -1,1 +1,8 @@
+# Scratch area for user apps: ignored by default so local experiments do not
+# end up in commits.
 *
+!.gitignore
+
+# ...except BLE Locator, which ships with this branch.
+!/ble_locator/
+!/ble_locator/**

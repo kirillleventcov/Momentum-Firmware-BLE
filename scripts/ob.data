@@ -1,3 +1,14 @@
+# Option byte reference used by the updater.
+#   rw - compared, and patched if it differs
+#   r  - compared only; a mismatch aborts the update
+#   i  - ignored entirely
+#
+# The flash/SRAM boundaries below (SFSA, SBRV, SBRSA, SNBRSA, BRSD, NBRSD) are
+# owned by FUS: it rewrites them from the wireless stack image whenever a stack
+# is installed, so their values follow COPRO_STACK_BIN rather than anything we
+# choose. Pinning them here only creates a failure mode - an update that swaps
+# the radio stack would flash the stack, then abort on its own new option bytes.
+# The radio install step already proves they are right, so they are ignored.
 RDP:0xAA:r
 BOR_LEV:0x4:rw
 nBOOT0:0x1:rw
@@ -14,15 +25,15 @@ IWDGSTOP:0x1:rw
 IWDGSW:0x1:rw
 IPCCDBA:0x0:rw
 ESE:0x1:r
-SFSA:0xD7:r
+SFSA:0xCE:i
 FSD:0x0:r
 DDS:0x1:r
 C2OPT:0x1:r
-NBRSD:0x0:r
-SNBRSA:0xB:r
-BRSD:0x0:r
-SBRSA:0x12:r
-SBRV:0x35C00:r
+NBRSD:0x0:i
+SNBRSA:0xB:i
+BRSD:0x0:i
+SBRSA:0x12:i
+SBRV:0x33800:i
 PCROP1A_STRT:0x1FF:r
 PCROP1A_END:0x0:r
 PCROP_RDP:0x1:rw
