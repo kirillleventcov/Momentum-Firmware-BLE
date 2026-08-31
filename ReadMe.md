@@ -1,3 +1,41 @@
+## This fork: BLE observer support
+
+A fork of [Momentum Firmware](https://github.com/Next-Flip/Momentum-Firmware) that gives the
+Flipper Zero the ability to **receive** BLE advertisements, which stock firmware cannot do, plus
+an app built on top of it. Everything else is upstream Momentum and tracks it.
+
+### BLE Locator — [applications_user/ble_locator](applications_user/ble_locator/README.md)
+
+Groups BLE devices by what they broadcast. Walk up to a handful of devices that belong together
+and capture them; the app keeps only the traits they all share, then recognises devices of that
+kind it has never seen before and homes in on them by signal strength. Built for finding hardware
+with no working cellular link, GPS or backend to ask. Ships with no groups — it knows nothing
+until someone teaches it from real hardware.
+
+Full documentation, field workflow and hardware notes: **[applications_user/ble_locator/README.md](applications_user/ble_locator/README.md)**
+
+### Firmware modifications
+
+| Change | Why |
+| --- | --- |
+| `fbt_options.py` — full radio stack (`stm32wb5x_BLE_Stack_full_fw.bin`) | The stock **light** stack is "Slave Only": it can advertise but its link layer has no scanner at all. No app can work around that. |
+| `targets/f7/ble_glue/ble_scanner.{c,h}` *(new)* | The observer procedure: starts/stops scanning, parses `HCI_LE_ADVERTISING_REPORT`, delivers reports to a registered callback. |
+| `targets/furi_hal_include/furi_hal_bt.h`, `targets/f7/furi_hal/furi_hal_bt.c` | Public API: `furi_hal_bt_is_scan_supported`, `_start_scan`, `_stop_scan`, `_is_scanning`, plus the report/config types. |
+| `targets/f7/ble_glue/gap.c` | Requests the GAP **observer** role alongside peripheral when the full stack is present, falling back to plain peripheral if the controller rejects it. |
+| `scripts/ob.data`, `scripts/flipper/assets/obdata.py` | Added an `i` (ignore) check mode. The flash/SRAM boundary option bytes are owned by FUS and follow whichever stack is installed, so comparing them against a build-time constant would abort any update that swaps the radio stack. |
+| `applications/drivers/subghz/cc1101_ext/cc1101_ext.c` | Unrelated fix: pin 7 (PC3) is both the E07 amp control and the Extra SPI chip select — driving it as an amp control toggled CS mid-transaction and desynced CC1101 SPI framing on combo boards. |
+| `applications/main/subghz/…`, `js_app/…/radio_device_loader.c` | Unrelated fix: `subghz_devices_begin()` failures were ignored, so a module that answered the probe but failed to initialise stayed selected and tripped a `furi_check` on every later idle/rx/tx. Now falls back to the internal radio. |
+
+**Build note:** the full stack is installed 36 KiB lower in flash than the light one, so the
+firmware image has that much less room. Build with `COMPACT = 1` / `DEBUG = 0` (the default) —
+a debug build will not fit. `./fbt updater_package` refuses to build a package whose firmware
+would overlap the radio region, so a broken one cannot ship by accident.
+
+Installing a build from this fork **replaces the radio stack on your Flipper.** Flashing stock
+Momentum or official firmware afterwards puts the light stack back.
+
+---
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo_dark.png">
