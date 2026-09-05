@@ -7,6 +7,7 @@ typedef enum {
     BlGroupEditAdd,
     BlGroupEditMembers,
     BlGroupEditDetails,
+    BlGroupEditRename,
     BlGroupEditToggle,
     BlGroupEditDelete,
 } BlGroupEditIndex;
@@ -39,11 +40,12 @@ void ble_scene_group_edit_on_enter(void* context) {
         app->submenu, "Add device", BlGroupEditAdd, ble_scene_group_edit_callback, app);
 
     snprintf(label, sizeof(label), "Members (%u)", app->captures.count);
-    submenu_add_item(
-        app->submenu, label, BlGroupEditMembers, ble_scene_group_edit_callback, app);
+    submenu_add_item(app->submenu, label, BlGroupEditMembers, ble_scene_group_edit_callback, app);
 
     submenu_add_item(
         app->submenu, "Details", BlGroupEditDetails, ble_scene_group_edit_callback, app);
+    submenu_add_item(
+        app->submenu, "Rename", BlGroupEditRename, ble_scene_group_edit_callback, app);
     submenu_add_item(
         app->submenu,
         g->enabled ? "Disable" : "Enable",
@@ -82,6 +84,10 @@ bool ble_scene_group_edit_on_event(void* context, SceneManagerEvent event) {
 
     case BlGroupEditDetails:
         scene_manager_next_scene(app->scene_manager, BlSceneGroupDetails);
+        return true;
+
+    case BlGroupEditRename:
+        scene_manager_next_scene(app->scene_manager, BlSceneGroupRename);
         return true;
 
     case BlGroupEditToggle: {

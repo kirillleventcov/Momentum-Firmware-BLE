@@ -552,6 +552,40 @@ void bl_group_list_remove(BlGroupList* list, uint8_t index) {
     list->count--;
 }
 
+void bl_group_name_trim(char* name) {
+    size_t len = strlen(name);
+    while(len > 0 && name[len - 1] == ' ') {
+        name[--len] = '\0';
+    }
+    size_t lead = 0;
+    while(name[lead] == ' ') {
+        lead++;
+    }
+    if(lead) memmove(name, name + lead, len - lead + 1);
+}
+
+int8_t bl_group_list_find(const BlGroupList* list, const char* name) {
+    for(uint8_t i = 0; i < list->count; i++) {
+        if(strncmp(list->items[i].name, name, BL_GROUP_NAME_MAX) == 0) return (int8_t)i;
+    }
+    return -1;
+}
+
+const char* bl_group_name_problem(const BlGroupList* list, const char* name, int8_t self) {
+    char clean[BL_GROUP_NAME_MAX + 1];
+    snprintf(clean, sizeof(clean), "%s", name);
+    bl_group_name_trim(clean);
+    if(clean[0] == '\0') return "Name is\nempty";
+
+    int8_t other = bl_group_list_find(list, clean);
+    if(other >= 0 && other != self) return "Name already\nused";
+    return NULL;
+}
+
+bool bl_group_name_available(const BlGroupList* list, const char* name, int8_t self) {
+    return bl_group_name_problem(list, name, self) == NULL;
+}
+
 uint16_t bl_group_list_next_id(const BlGroupList* list) {
     uint16_t max = 0;
     for(uint8_t i = 0; i < list->count; i++) {

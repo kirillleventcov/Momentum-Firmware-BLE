@@ -14,7 +14,7 @@ extern "C" {
 
 #define BL_GROUP_NAME_MAX (23)
 #define BL_GROUP_MAX      (24) /**< groups held in memory */
-#define BL_CAPTURE_MAX      (8) /**< captures that can go into one group */
+#define BL_CAPTURE_MAX    (8) /**< captures that can go into one group */
 
 /** Criteria a group can assert. Only criteria present in every capture end up
  * enabled, which is what makes learning from several devices work. */
@@ -154,6 +154,20 @@ void bl_group_list_assign_ids(BlGroupList* list);
 
 /** Remove entry `index` */
 void bl_group_list_remove(BlGroupList* list, uint8_t index);
+
+/** Strip leading and trailing spaces from a group name, in place */
+void bl_group_name_trim(char* name);
+
+/** Index of the group called `name` (exact match), or -1 */
+int8_t bl_group_list_find(const BlGroupList* list, const char* name);
+
+/** Why `name` cannot be given to group `self` (-1 for a new group), as a short
+ * message for the keyboard, or NULL when it can. A name must not be blank after
+ * trimming and no other group may already use it. */
+const char* bl_group_name_problem(const BlGroupList* list, const char* name, int8_t self);
+
+/** bl_group_name_problem() == NULL */
+bool bl_group_name_available(const BlGroupList* list, const char* name, int8_t self);
 
 #ifdef __cplusplus
 }

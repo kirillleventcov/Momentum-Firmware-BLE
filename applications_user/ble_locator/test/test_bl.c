@@ -797,6 +797,47 @@ static void test_tightening(void) {
     CHECK(rep.separated, "vacuously separated\n");
 }
 
+static void test_group_names(void) {
+    printf("group names\n");
+
+    BlGroupList list;
+    memset(&list, 0, sizeof(list));
+    list.count = 2;
+    snprintf(list.items[0].name, sizeof(list.items[0].name), "Voi Helsinki");
+    snprintf(list.items[1].name, sizeof(list.items[1].name), "Tier");
+
+    CHECK(bl_group_list_find(&list, "Tier") == 1, "find existing\n");
+    CHECK(bl_group_list_find(&list, "tier") < 0, "find is exact\n");
+    CHECK(bl_group_list_find(&list, "Lime") < 0, "find missing\n");
+
+    char name[BL_GROUP_NAME_MAX + 1];
+    snprintf(name, sizeof(name), "   Lime  ");
+    bl_group_name_trim(name);
+    CHECK(strcmp(name, "Lime") == 0, "trim gave '%s'\n", name);
+    snprintf(name, sizeof(name), "    ");
+    bl_group_name_trim(name);
+    CHECK(name[0] == '\0', "all-space trim gave '%s'\n", name);
+
+    /* new group */
+    CHECK(bl_group_name_available(&list, "Lime", -1), "fresh name refused\n");
+    CHECK(!bl_group_name_available(&list, "Tier", -1), "duplicate accepted for new group\n");
+    CHECK(!bl_group_name_available(&list, " Tier ", -1), "padded duplicate accepted\n");
+    CHECK(!bl_group_name_available(&list, "", -1), "empty accepted\n");
+    CHECK(!bl_group_name_available(&list, "   ", -1), "blank accepted\n");
+
+    /* rename: keeping your own name is fine, taking another's is not */
+    CHECK(bl_group_name_available(&list, "Tier", 1), "own name refused on rename\n");
+    CHECK(
+        !bl_group_name_available(&list, "Voi Helsinki", 1),
+        "rename onto another group accepted\n");
+    CHECK(bl_group_name_available(&list, "Tier Berlin", 1), "rename to fresh name refused\n");
+    CHECK(
+        strcmp(bl_group_name_problem(&list, "Voi Helsinki", 1), "Name already\nused") == 0,
+        "wrong message for clash\n");
+    CHECK(
+        bl_group_name_problem(&list, "Tier Berlin", 1) == NULL, "problem reported for ok name\n");
+}
+
 int main(void) {
     test_parsing();
     test_truncated_input();
@@ -808,6 +849,7 @@ int main(void) {
     test_fuzz_parser();
     test_members();
     test_group_ids();
+    test_group_names();
     test_row_order();
     test_row_order_integrity();
     test_tightening();

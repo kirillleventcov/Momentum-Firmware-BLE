@@ -120,7 +120,7 @@ The main menu is the whole model of the app:
 | **Scan all devices** | Everything on air, strongest first, with anything matching a known group labelled and scored. This is the analysis mode — use it to see what is actually around you. |
 | **Find a group** | Pick one group (or **Any group**) and the screen stays empty until a member comes into range. This is the walk-past mode. |
 | **Learn a group** | Capture devices that belong together and build a group from what they share. |
-| **Groups** | Add devices to a group, remove members, inspect, enable/disable and delete. |
+| **Groups** | Add devices to a group, remove members, inspect, rename, enable/disable and delete. |
 
 Which mode you are in is always an explicit choice made at the menu, and the
 list header says so: `ALL 12 seen 10 hit`, `Fleet 4  9`, `LEARN captured 2/8`.
@@ -200,6 +200,7 @@ added to later.
 | **Add device** | Runs a normal scan showing everything (the device you are adding is by definition one the group does not match yet). Pick it with OK. |
 | **Members (N)** | The devices the group was built from. Open one to see its advertisement and **Remove** it. |
 | **Details** | What the group keys on and its threshold. |
+| **Rename** | Give the group a new name. Names must be unique — the keyboard refuses a name another group already has, or a blank one. Members and the group lock follow the rename. |
 
 Adding or removing re-intersects the whole member set into a fresh fingerprint
 and puts it through the same review screen as a first-time build, so you see
