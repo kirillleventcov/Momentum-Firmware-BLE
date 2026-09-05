@@ -17,6 +17,7 @@ typedef enum {
     BlScanModeGroup, /**< only devices matching the selected group(s) */
     BlScanModeLearn, /**< capture advertisers to build a group from */
     BlScanModeAddMember, /**< pick one advertiser to add to an existing group */
+    BlScanModeRetest, /**< settle, then re-tighten a group against what is on air */
 } BlScanMode;
 
 typedef struct BlViewList BlViewList;

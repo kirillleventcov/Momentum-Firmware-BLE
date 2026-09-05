@@ -199,7 +199,8 @@ added to later.
 | --- | --- |
 | **Add device** | Runs a normal scan showing everything (the device you are adding is by definition one the group does not match yet). Pick it with OK. |
 | **Members (N)** | The devices the group was built from. Open one to see its advertisement and **Remove** it. |
-| **Details** | What the group keys on and its threshold. |
+| **Details** | What the group keys on and its threshold. **Left/Right** move the threshold by 5 % for this group alone, unlike Match mode which shifts every group. |
+| **Retest here** | Re-intersects the stored members and tightens the group against whatever is on air where you stand now, then shows the same review screen as a build. Use it to check a group learned somewhere quiet once you are somewhere busy. Back discards, Save keeps the retuned threshold. |
 | **Rename** | Give the group a new name. Names must be unique — the keyboard refuses a name another group already has, or a blank one. Members and the group lock follow the rename. |
 
 Adding or removing re-intersects the whole member set into a fresh fingerprint
@@ -268,6 +269,10 @@ Nordic UART module  0     <- devices on air, none of them yours
 Fleet 4  9                <- nine of them are
 ```
 
+A member coming into range **buzzes and blinks green** (the Beeper and
+Vibration settings apply), so the Flipper can stay in a pocket while you walk.
+A device that dropped off the list and comes back announces itself again.
+
 **Any group** is still a filter: it hides everything the app has never been
 taught, it just does not care which group a hit belongs to. Use it when you
 have several groups and want all of them at once.
@@ -279,7 +284,8 @@ rather than leaving you with a permanently blank screen.
    many seconds since the last packet.
 2. **OK** opens the homing screen: a large signal reading, a coarse distance
    band, a CLOSER/FURTHER trend, a peak marker and a Geiger-counter beep that
-   speeds up as you close in and adds a buzz within a metre or two.
+   speeds up as you close in and adds a buzz within a metre or two. The screen
+   stays lit for as long as you are on it.
 3. Walk. Sweep around parked cars, bike racks and building corners — the body of
    a van will cost you 10–20 dB.
 

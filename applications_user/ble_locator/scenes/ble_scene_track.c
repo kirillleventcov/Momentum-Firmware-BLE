@@ -46,6 +46,10 @@ void ble_scene_track_on_enter(void* context) {
     bl_view_track_reset(app->view_track);
     app->last_feedback = 0;
 
+    /* Homing means walking with the Flipper in hand for minutes; the screen
+     * dimming mid-sweep is exactly when the reading is wanted. */
+    notification_message(app->notifications, &sequence_display_backlight_enforce_on);
+
     view_dispatcher_switch_to_view(app->view_dispatcher, BlViewIdTrack);
 }
 
@@ -104,5 +108,6 @@ bool ble_scene_track_on_event(void* context, SceneManagerEvent event) {
 }
 
 void ble_scene_track_on_exit(void* context) {
-    UNUSED(context);
+    BlApp* app = context;
+    notification_message(app->notifications, &sequence_display_backlight_enforce_auto);
 }

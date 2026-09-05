@@ -26,6 +26,75 @@ static const NotificationSequence bl_seq_reject = {
     NULL,
 };
 
+/* A member of the group you are looking for just came into range. Loud enough
+ * to notice with the Flipper in a pocket, which is how walk-past mode is used. */
+static const NotificationSequence bl_seq_hit = {
+    &message_green_255,
+    &message_delay_100,
+    &message_green_0,
+    &message_delay_100,
+    &message_green_255,
+    &message_delay_100,
+    &message_green_0,
+    NULL,
+};
+
+static const NotificationSequence bl_seq_hit_sound = {
+    &message_note_e6,
+    &message_delay_50,
+    &message_note_g6,
+    &message_delay_100,
+    &message_sound_off,
+    NULL,
+};
+
+static const NotificationSequence bl_seq_hit_vibro = {
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_50,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    NULL,
+};
+
+static void ble_scene_scan_alert_hit(BlApp* app) {
+    notification_message(app->notifications, &bl_seq_hit);
+    if(app->settings.vibro) notification_message(app->notifications, &bl_seq_hit_vibro);
+    if(app->settings.sound) notification_message(app->notifications, &bl_seq_hit_sound);
+}
+
+static bool ble_scene_scan_hit_seen(const BlApp* app, const uint8_t mac[6]) {
+    for(uint8_t i = 0; i < app->hit_seen_count; i++) {
+        if(memcmp(app->hit_seen[i], mac, 6) == 0) return true;
+    }
+    return false;
+}
+
+/* Compare this refresh's hits with the last one's and alert on newcomers.
+ * `announce_all` is for the moment the settle closes: whatever it found is
+ * reported once as a whole rather than as a burst of separate alerts. */
+static void ble_scene_scan_track_hits(
+    BlApp* app,
+    const BlDeviceView* rows,
+    size_t count,
+    bool announce_all) {
+    bool alert = false;
+    for(size_t i = 0; i < count && !alert; i++) {
+        if(!rows[i].matched) continue;
+        if(announce_all || !ble_scene_scan_hit_seen(app, rows[i].mac)) alert = true;
+    }
+
+    app->hit_seen_count = 0;
+    for(size_t i = 0; i < count && app->hit_seen_count < BL_SNAPSHOT_MAX; i++) {
+        if(!rows[i].matched) continue;
+        memcpy(app->hit_seen[app->hit_seen_count++], rows[i].mac, 6);
+    }
+
+    if(alert) ble_scene_scan_alert_hit(app);
+}
+
 static void ble_scene_scan_callback(uint32_t event, void* context) {
     BlApp* app = context;
     view_dispatcher_send_custom_event(app->view_dispatcher, event);
@@ -46,6 +115,13 @@ static void ble_scene_scan_settle_start(BlApp* app) {
 void ble_scene_scan_on_enter(void* context) {
     BlApp* app = context;
 
+    /* A retest is over once its review screen closes; coming back here would
+     * only show a list nobody asked for. */
+    if(app->scan_mode == BlScanModeRetest && !app->settle_pending) {
+        scene_manager_previous_scene(app->scene_manager);
+        return;
+    }
+
     bl_view_list_set_callback(app->view_list, ble_scene_scan_callback, app);
     bl_view_list_set_mode(app->view_list, app->scan_mode);
 
@@ -61,6 +137,7 @@ void ble_scene_scan_on_enter(void* context) {
      * screen keeps the order you were already looking at. */
     if(app->settle_pending) {
         app->settle_pending = false;
+        app->hit_seen_count = 0;
         ble_scene_scan_settle_start(app);
     } else {
         bl_view_list_set_settling(app->view_list, false, 0, app->settings.settle_s);
@@ -111,17 +188,41 @@ static void ble_scene_scan_refresh(BlApp* app) {
                 (uint8_t)((left_ms + 999) / 1000),
                 app->settings.settle_s);
         } else {
+            if(app->scan_mode == BlScanModeRetest) {
+                /* Enough of the neighbourhood heard; rebuild the group from
+                 * its stored members against it and let the review decide. */
+                app->settling = false;
+                const char* error = NULL;
+                if(bl_app_rebuild_group(app, &error)) {
+                    scene_manager_next_scene(app->scene_manager, BlSceneLearnReview);
+                } else {
+                    /* Back to the group menu first so the popup returns to
+                     * the view that scene owns, not to this list. */
+                    scene_manager_previous_scene(app->scene_manager);
+                    bl_app_show_message(
+                        app, BlViewIdSubmenu, "Cannot rebuild", error ? error : "Unknown problem");
+                    notification_message(app->notifications, &bl_seq_reject);
+                }
+                return;
+            }
+
             /* The snapshot arrives sorted by signal, so freezing it here is
              * exactly "closest at the top, furthest at the bottom". */
             bl_order_freeze(&app->order, rows, count);
             app->settling = false;
             bl_view_list_set_settling(app->view_list, false, 0, app->settings.settle_s);
+            if(app->scan_mode == BlScanModeGroup) {
+                ble_scene_scan_track_hits(app, rows, count, true);
+            }
         }
     }
 
     if(!app->settling) {
         count = bl_order_apply(&app->order, rows, count);
         bl_view_list_set_rows(app->view_list, rows, count);
+        if(app->scan_mode == BlScanModeGroup) {
+            ble_scene_scan_track_hits(app, rows, count, false);
+        }
     }
 
     BlScanStats stats;
@@ -135,8 +236,9 @@ static void ble_scene_scan_refresh(BlApp* app) {
         bl_scanner_log_is_active(app->scanner));
     bl_view_list_set_group(
         app->view_list,
-        (app->scan_mode == BlScanModeAddMember) ? app->groups.items[app->selected_group].name :
-                                                  bl_app_group_lock(app));
+        (app->scan_mode == BlScanModeAddMember || app->scan_mode == BlScanModeRetest) ?
+            app->groups.items[app->selected_group].name :
+            bl_app_group_lock(app));
     bl_view_list_set_mode(app->view_list, app->scan_mode);
 }
 

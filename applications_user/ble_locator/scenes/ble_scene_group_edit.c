@@ -7,6 +7,7 @@ typedef enum {
     BlGroupEditAdd,
     BlGroupEditMembers,
     BlGroupEditDetails,
+    BlGroupEditRetest,
     BlGroupEditRename,
     BlGroupEditToggle,
     BlGroupEditDelete,
@@ -44,6 +45,8 @@ void ble_scene_group_edit_on_enter(void* context) {
 
     submenu_add_item(
         app->submenu, "Details", BlGroupEditDetails, ble_scene_group_edit_callback, app);
+    submenu_add_item(
+        app->submenu, "Retest here", BlGroupEditRetest, ble_scene_group_edit_callback, app);
     submenu_add_item(
         app->submenu, "Rename", BlGroupEditRename, ble_scene_group_edit_callback, app);
     submenu_add_item(
@@ -84,6 +87,21 @@ bool ble_scene_group_edit_on_event(void* context, SceneManagerEvent event) {
 
     case BlGroupEditDetails:
         scene_manager_next_scene(app->scene_manager, BlSceneGroupDetails);
+        return true;
+
+    case BlGroupEditRetest:
+        /* Same rebuild an add or remove does, minus the change: the stored
+         * members are re-intersected and tightened against whatever is on
+         * air where you stand now. Answers "is this group still selective
+         * here" without touching it unless you press Save. */
+        if(app->captures.count == 0) {
+            bl_app_show_message(
+                app, BlViewIdSubmenu, "No stored members", "Add a device first");
+            return true;
+        }
+        app->scan_mode = BlScanModeRetest;
+        app->settle_pending = true;
+        scene_manager_next_scene(app->scene_manager, BlSceneScan);
         return true;
 
     case BlGroupEditRename:

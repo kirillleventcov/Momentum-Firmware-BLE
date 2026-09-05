@@ -130,6 +130,10 @@ typedef struct {
     /* Set by the menu that opened the scan. Coming back from the homing or
      * details screen must not restart the settle and reshuffle everything. */
     bool settle_pending;
+    /* Group-mode hits present at the last refresh. Anything in the current
+     * snapshot but not here has just come into range and gets an alert. */
+    uint8_t hit_seen[BL_SNAPSHOT_MAX][6];
+    uint8_t hit_seen_count;
 
     uint8_t target_mac[6];
     BlGroup pending_group;
